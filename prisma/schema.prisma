@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          Role      @default(USER)
+  urls          Url[]
+  teams         TeamMember[]
+  sessions      Session[]
+}
+
+model Team {
+  id          String    @id @default(cuid())
+  name        String
+  createdAt   DateTime  @default(now())
+  members     TeamMember[]
+  urls        Url[]
+}
+
+model TeamMember {
+  id        String    @id @default(cuid())
+  role      TeamRole  @default(MEMBER)
+  team      Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([teamId, userId])
+}
+
+model Url {
+  id            String    @id @default(cuid())
+  originalUrl   String
+  shortCode     String    @unique
+  title         String?
+  description   String?
+  password      String?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User?     @relation(fields: [userId], references: [id])
+  userId        String?
+  team          Team?     @relation(fields: [teamId], references: [id])
+  teamId        String?
+  isArchived    Boolean   @default(false)
+  clicks        Click[]
+  tags          Tag[]
+  folder        Folder?   @relation(fields: [folderId], references: [id])
+  folderId      String?
+
+  @@index([shortCode])
+  @@index([userId])
+  @@index([teamId])
+}
+
+model Click {
+  id          String    @id @default(cuid())
+  url         Url       @relation(fields: [urlId], references: [id], onDelete: Cascade)
+  urlId       String
+  timestamp   DateTime  @default(now())
+  ip          String?
+  userAgent   String?
+  referer     String?
+  country     String?
+  city        String?
+  device      String?
+  browser     String?
+
+  @@index([urlId])
+  @@index([timestamp])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String
+  color     String?
+  urls      Url[]
+  userId    String?
+  teamId    String?
+
+  @@unique([name, userId, teamId])
+}
+
+model Folder {
+  id        String    @id @default(cuid())
+  name      String
+  urls      Url[]
+  userId    String?
+  teamId    String?
+  parent    Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id])
+  parentId  String?
+  children  Folder[]  @relation("FolderHierarchy")
+
+  @@unique([name, userId, teamId, parentId])
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
